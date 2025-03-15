@@ -1,0 +1,24 @@
+MapAssemblor
+|
+|-- _settings
+|   Stores some needed elements, that's also where you can edit the size override and the WARapi offset correction
+|
+|-- BaseMaps
+|   Contains base maps used as background layers
+|
+|-- DataDics
+|   Contains list of coordinates for custom items (wells for example)
+|
+|-- GlobalLayers
+|   Contains layers that need to be applied to each maps
+|
+|-- ItemLayers
+|   Contains images of the items, that will be placed using WARapi or dictionnary coordinates
+|
+|-- Result
+|   Contains generated results, with background
+|   |-- blank_result
+|       Contains the processed layers without the background
+|
+|-- SpeLayers
+    Contains map specific layers, and/or folders of those map specific layers (roads for example)
