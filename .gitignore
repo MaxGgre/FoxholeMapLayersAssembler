@@ -4,5 +4,5 @@ FMLA_V1.1/readme_python_user.txt
 FMLA_V1.1/readme.txt
 FMLA_V1.1/execute.bat
 FMLA_V1.1/map_assembler.py
-FMLA_V1.1/venv/
-FMLA_V1.1/results/
+FMLA_V1.1/_settings/venv/
+FMLA_V1.1/Result/
