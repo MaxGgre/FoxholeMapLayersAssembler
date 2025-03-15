@@ -1,5 +1,9 @@
 VARIOUS INFOS
 
+The .exe file doesn't requires Python
+
+If you want to use the Python code, refer to the Python readme.
+
 the .txt in DataDic must be named same as corresponding png, and content follow this format:
 TheFingersHex : [(0, 0), (0.5, 0.5)]
 
