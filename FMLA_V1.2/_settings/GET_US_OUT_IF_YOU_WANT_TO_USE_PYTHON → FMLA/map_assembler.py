@@ -19,12 +19,16 @@ install_package('Pillow')
 # Install requests if not already installed
 install_package('requests')
 
+# Install numpy if not already installed
+install_package('numpy')
+
 from PIL import Image
 import requests
 import re
 import json
 import tkinter as tk
 from tkinter import Frame, Listbox, Scrollbar, BooleanVar, messagebox, PhotoImage
+import numpy as np
 
 json_file_path = "_settings/item_codes.json"
 
@@ -62,6 +66,25 @@ def get_top_coords(support: Image, sticker: Image, center_coords: tuple[int, int
     y = int(y - sticker_height // 2)
 
     return (x,y)
+
+def create_masks(og_image, mask_image_path):
+    mask_image = Image.open(mask_image_path)
+
+    mask_image = mask_image.resize((og_image.width, og_image.height))
+
+    mask_array = np.array(mask_image)
+
+    #Define the colors
+    blue_color = np.array([0, 0, 255])
+    red_color = np.array([255, 0, 0])
+    green_color = np.array([0, 255, 0])
+
+    #Create the masks
+    blue_mask = np.all(mask_array == blue_color, axis=-1)
+    red_mask = np.all(mask_array == red_color, axis=-1)
+    green_mask = np.all(mask_array == green_color, axis=-1)
+
+    return blue_mask, red_mask, green_mask
 
 def sequential_items(mapitem, checkbox_states, show_maps):
     Foxholemap = mapitem[3:-4]
@@ -121,65 +144,93 @@ def sequential_items(mapitem, checkbox_states, show_maps):
         #-------------------------------------------------------------------------------------------------------------------------------
         if response.status_code == 200:
             data = response.json()
+            
+            #create masks
+            blue_mask, red_mask, green_mask = create_masks(image_blank, os.path.join("Mask/", mapitem[:-4] + "_mask.png"))
         
             # Build item lists
             for item in os.listdir(itemfolder):
-                if file_name(item) in item_code_dict:
-                    named_item = file_name(item)
-                    item_list.append(named_item)
-                    numbered_items_list = item_code_dict[named_item]
-                    
-                else:
+                item_path = os.path.join(itemfolder, item)
+
+                color_dic = {"Land" : red_mask, "Sea" : blue_mask, "Rocks" : green_mask}
+
+
+                if os.path.isdir(item_path):
+                    dir_name = item_path[11:]
+                    dir
+                    for item in os.listdir(item_path):
+                        if file_name(item) in item_code_dict:
+                            named_item = file_name(item)
+                            item_list.append(named_item)
+                            numbered_items_list = item_code_dict[named_item]
+                            
+                        else:
+                            continue
+
+                        for numbered_items in numbered_items_list:
+                            # Items presence + coordinate
+                            coordinates = [(item['x'], item['y']) for item in data['mapItems'] if item['iconType'] == numbered_items]
+
+                            # Load the smaller image to overlay
+                            pic_to_add = Image.open(os.path.join(item_path, item)).convert("RGBA")
+            
+                            xa = 0
+                            ya = 0
+            
+                    #-------------------------------------------------------------------------------------------------------------------------------
+            
+                            # Look for corrections
+                            pattern = rf"{numbered_items}\s*:\s*\(([^;]+);([^)]+)\)"
+            
+                            # Search for coordinates
+                            match = re.search(pattern, corrections)
+            
+                            if match:
+                                xa = match.group(1)
+                                ya = match.group(2)
+            
+                                # Corrected coordinates
+                                xa = int(xa) * 0.94
+                                ya = int(xa) * 0.94
+            
+                            image_temp = Image.new("RGBA", image_blank.size, (255, 255, 255, 0))
+                            for coords in coordinates:
+            
+                                coords = get_top_coords(image_temp, pic_to_add, coords)
+                                coords = (int(coords[0] + xa),int(coords[1] + ya))
+                                
+                                image_temp.alpha_composite(pic_to_add, dest= coords)
+
+                            
+                            if dir_name in color_dic:
+                                mask = color_dic[dir_name]
+                                
+                                image_temp = np.array(image_temp)
+
+                                if image_temp.shape[:2] != mask.shape:
+                                    raise ValueError("Issue with mask size")
+
+                                masked_image = np.zeros_like(image_temp)
+                                masked_image[mask] = image_temp[mask]
+
+                                image_temp = Image.fromarray(masked_image)
+
+                            image_blank = Image.alpha_composite(image_blank, image_temp)
+                else: 
                     continue
-
-                for numbered_items in numbered_items_list:
-                    # Items presence + coordinate
-                    coordinates = [(item['x'], item['y']) for item in data['mapItems'] if item['iconType'] == numbered_items]
-
-                    # Load the smaller image to overlay
-                    pic_to_add = Image.open(os.path.join(itemfolder, item)).convert("RGBA")
-    
-                    xa = 0
-                    ya = 0
-    
-            #-------------------------------------------------------------------------------------------------------------------------------
-    
-                    # Look for corrections
-                    pattern = rf"{numbered_items}\s*:\s*\(([^;]+);([^)]+)\)"
-    
-                    # Search for coordinates
-                    match = re.search(pattern, corrections)
-    
-                    if match:
-                        xa = match.group(1)
-                        ya = match.group(2)
-    
-                        # Corrected coordinates
-                        xa = int(xa) * 0.94
-                        ya = int(xa) * 0.94
-    
-    
-                    image_temp = Image.new("RGBA", image_blank.size, (255, 255, 255, 0))
-                    for coords in coordinates:
-    
-                        coords = get_top_coords(image_temp, pic_to_add, coords)
-                        coords = (int(coords[0] + xa),int(coords[1] + ya))
-                        
-                        image_temp.alpha_composite(pic_to_add, dest= coords)
-    
-                    image_blank = Image.alpha_composite(image_blank, image_temp)
 
         else:
             print(f"Error: {Foxholemap} : {response.status_code}")
 
         #-------------------------------------------------------------------------------------------------------------------------------
 
-    if checkbox_states[1]: 
+    if checkbox_states[1]:
 
         # Additional items
-        for files in os.listdir(dicfolder):
+
+        for files in os.listdir(dicfolder): 
             newitem = files[:-4]
-            new_item_len = len(newitem)
+            #new_item_len = len(newitem)
 
             for pngfiles in os.listdir(itemfolder):
                 if pngfiles.startswith(newitem):
@@ -204,8 +255,6 @@ def sequential_items(mapitem, checkbox_states, show_maps):
 
                         image_temp = Image.new("RGBA", image_blank.size, (255, 255, 255, 0))
                         for coords in tuples:
-
-                            print(file_full_name, coords)
 
                             image_temp.alpha_composite(pic_to_add, dest= get_top_coords(image_temp, pic_to_add, coords))
 
